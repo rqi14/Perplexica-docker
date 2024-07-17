@@ -1,10 +1,13 @@
 
 
 # How to use
-This project assumes you use docker compose deployment
+This project assumes you use docker compose deployment, and searxng is served separately.
 
-You need two files.
-The first one is app.dockerfile, which should be placed together with your docker-compose.yaml file
+You need three files.
+The first one is app.dockerfile, which should be placed together with your docker-compose.yaml file. 
+
+You will also need your config.toml file. 
+
 
 `app.dockerfile`
 
