@@ -1,4 +1,9 @@
-m
+This repo periodically pulls from the upstream Perplexica repo and pushes docker images to docker hub. If using reverse proxy, please refer to https://github.com/ItzCrazyKns/Perplexica/issues/241
+
+Docker images with three tags are pushed to dockerhub.
+1. latest: the latest build of perplexica
+2. x.x.x: the build of a specific version x.x.x
+3. slim: the latest build of perplexica slimmed using https://github.com/slimtoolkit/slim
 
 # How to use
 This project assumes you use docker compose deployment, and searxng is served separately.
