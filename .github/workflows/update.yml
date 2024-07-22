@@ -1,0 +1,108 @@
+name: Update and Build Docker Images
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Run daily at midnight
+  workflow_dispatch:
+
+jobs:
+  update-and-build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - dockerfile: 'frontend.dockerfile'
+            image_name: 'perplexica-app'
+            http_probe_ports: '3000'
+            expose_ports: '3000'
+          - dockerfile: 'backend.dockerfile'
+            image_name: 'perplexica-backend'
+            http_probe_ports: '3001'
+            expose_ports: '3001'
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v2
+      with:
+        ref: master
+
+    - name: Set up Git
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        git remote add upstream https://github.com/ItzCrazyKns/Perplexica.git
+        git fetch upstream master
+    - name: Check for Updates
+      id: check_updates
+      run: |
+        UPSTREAM_LATEST_COMMIT=$(git rev-parse upstream/master)
+        echo "UPSTREAM_LATEST_COMMIT=${UPSTREAM_LATEST_COMMIT}" >> $GITHUB_ENV
+        if [ -f .last_upstream_commit ]; then
+          LAST_UPSTREAM_COMMIT=$(cat .last_upstream_commit)
+        else
+          LAST_UPSTREAM_COMMIT=""
+        fi
+        echo "LAST_UPSTREAM_COMMIT=${LAST_UPSTREAM_COMMIT}" >> $GITHUB_ENV
+        if [ "${UPSTREAM_LATEST_COMMIT}" != "${LAST_UPSTREAM_COMMIT}" ]; then
+          echo "New updates detected"
+          git merge upstream/master || true
+        else
+          echo "No updates"
+          if [ "${{ github.event_name }}" == "schedule" ]; then
+            exit 0
+          fi
+        fi
+    - name: Build Docker Image
+      if: env.UPSTREAM_LATEST_COMMIT != env.LAST_UPSTREAM_COMMIT || github.event_name == 'workflow_dispatch'
+      run: |
+        VERSION=$(jq -r '.version' package.json)
+        IMAGE_NAME=${{ matrix.image_name }}
+        DOCKERHUB_USERNAME=${{ vars.DOCKERHUB_USERNAME }}
+        echo "VERSION=${VERSION}"
+        echo "IMAGE_NAME=${IMAGE_NAME}"
+        echo "DOCKERHUB_USERNAME=${DOCKERHUB_USERNAME}"
+        docker build -f ${{ matrix.dockerfile }} -t ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:latest -t ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:$VERSION .
+    - name: Install DockerSlim
+      if: env.UPSTREAM_LATEST_COMMIT != env.LAST_UPSTREAM_COMMIT || github.event_name == 'workflow_dispatch'
+      run: |
+        curl -sL https://raw.githubusercontent.com/slimtoolkit/slim/master/scripts/install-slim.sh | sudo -E bash -
+    - name: Slim Docker Image
+      if: env.UPSTREAM_LATEST_COMMIT != env.LAST_UPSTREAM_COMMIT || github.event_name == 'workflow_dispatch'
+      run: |
+        IMAGE_NAME=${{ matrix.image_name }}
+        DOCKERHUB_USERNAME=${{ vars.DOCKERHUB_USERNAME }}
+        slim build --http-probe=true --http-probe-ports=${{ matrix.http_probe_ports }} --expose ${{ matrix.expose_ports }} --include-path "/home/perplexica/node_modules/next/dist" --include-path "/home/perplexica/yarn" --include-path "/home/perplexica/node_modules/encodings" --include-bin /usr/local/bin/node  --include-shell --target ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:latest --tag ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:slim
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+    - name: Docker Operations
+      if: env.UPSTREAM_LATEST_COMMIT != env.LAST_UPSTREAM_COMMIT || github.event_name == 'workflow_dispatch'
+      run: |
+        IMAGE_NAME=${{ matrix.image_name }}
+        DOCKERHUB_USERNAME=${{ vars.DOCKERHUB_USERNAME }}
+        VERSION=$(jq -r '.version' package.json)
+        docker push ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:latest
+        docker push ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:$VERSION
+        docker push ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:slim
+  commit-last-upstream:
+    needs: update-and-build
+    runs-on: ubuntu-latest
+    if: ${{ needs.update-and-build.result == 'success' }}
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v2
+      with:
+        ref: master
+
+    - name: Commit Changes
+      run: |
+        echo "${{ needs.update-and-build.outputs.UPSTREAM_LATEST_COMMIT }}" > .last_upstream_commit
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        git add .last_upstream_commit
+        git commit -m "Update last upstream commit"
+        git push origin master
