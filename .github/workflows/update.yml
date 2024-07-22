@@ -36,6 +36,7 @@ jobs:
     - name: Check for Updates
       id: check_updates
       run: |
+        git fetch upstream master
         UPSTREAM_LATEST_COMMIT=$(git rev-parse upstream/master)
         echo "UPSTREAM_LATEST_COMMIT=${UPSTREAM_LATEST_COMMIT}" >> $GITHUB_ENV
         if [ -f .last_upstream_commit ]; then
@@ -46,7 +47,12 @@ jobs:
         echo "LAST_UPSTREAM_COMMIT=${LAST_UPSTREAM_COMMIT}" >> $GITHUB_ENV
         if [ "${UPSTREAM_LATEST_COMMIT}" != "${LAST_UPSTREAM_COMMIT}" ]; then
           echo "New updates detected"
-          git merge upstream/master || true
+          git merge upstream/master -X theirs --no-edit || true
+    
+          echo "${UPSTREAM_LATEST_COMMIT}" > .last_upstream_commit
+          git add .last_upstream_commit
+          git commit -m "Update last upstream commit"
+          git push origin HEAD:master --force
         else
           echo "No updates"
           if [ "${{ github.event_name }}" == "schedule" ]; then
@@ -93,16 +99,26 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ needs.update-and-build.result == 'success' }}
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v2
-      with:
-        ref: master
-
-    - name: Commit Changes
-      run: |
-        echo "${{ needs.update-and-build.outputs.UPSTREAM_LATEST_COMMIT }}" > .last_upstream_commit
-        git config --global user.name 'github-actions[bot]'
-        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-        git add .last_upstream_commit
-        git commit -m "Update last upstream commit"
-        git push origin master
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+        with:
+          ref: master
+  
+      - name: Set up Git
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git remote add upstream https://github.com/ItzCrazyKns/Perplexica.git
+          git fetch upstream master
+  
+      - name: Commit Changes
+        run: |
+          UPSTREAM_LATEST_COMMIT=$(git rev-parse upstream/master)
+          echo "${UPSTREAM_LATEST_COMMIT}" > .last_upstream_commit
+  
+          # Merge with upstream master and prefer upstream changes in case of conflicts
+          git merge upstream/master -X theirs --no-edit || true
+  
+          git add .last_upstream_commit
+          git commit -m "Update last upstream commit"
+          git push origin master --force
