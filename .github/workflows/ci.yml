@@ -1,10 +1,9 @@
-name: Sync and Build 
+name: Sync and Build Docker Image
 
 on:
   schedule:
     # Runs at 00:00 UTC every day
     - cron: '0 0 * * *'
-  workflow_dispatch:
 
 jobs:
   sync:
@@ -22,32 +21,34 @@ jobs:
           git remote add upstream https://github.com/ItzCrazyKns/Perplexica.git || true
           git fetch upstream
 
-      - name: Check if repository is up-to-date
-        id: check-up-to-date
+      - name: Check if repository needs syncing
+        id: check-sync
         run: |
           LOCAL=$(git rev-parse @)
           REMOTE=$(git rev-parse "upstream/master")
-          BASE=$(git merge-base @ "upstream/master")
           if [ "$LOCAL" = "$REMOTE" ]; then
             echo "Repository is up-to-date"
             echo "REPO_SYNCED=true" >> $GITHUB_ENV
-          elif [ "$LOCAL" = "$BASE" ]; then
-            echo "Need to sync"
+          else
+            echo "Repository needs syncing"
             echo "REPO_SYNCED=false" >> $GITHUB_ENV
-          fi
+
       - name: Rebase with upstream
         if: env.REPO_SYNCED == 'false'
         run: |
           git rebase upstream/master
           if [ $? -eq 0 ]; then
+            echo "Rebase successful, pushing changes"
             git push --force-with-lease
+            echo "REPO_SYNCED=true" >> $GITHUB_ENV
           else
             echo "Conflicts detected during rebase. Manual intervention required."
+            echo "REPO_SYNCED=false" >> $GITHUB_ENV
             exit 1
 
   build-and-push:
     needs: sync
-    if: needs.sync.outputs.REPO_SYNCED == 'false'
+    if: needs.sync.outputs.REPO_SYNCED == 'true'
     runs-on: ubuntu-latest
     strategy:
       matrix:
