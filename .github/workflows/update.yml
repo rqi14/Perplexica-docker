@@ -11,11 +11,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Ensures all branches and tags are fetched
 
       - name: Set up Git
         run: |
-          git config --global user.name 'rqi14'
-          git config --global user.email 'rqi14@example.com'
+          git config --global user.name 'Your Name'
+          git config --global user.email 'your-email@example.com'
           git remote add upstream https://github.com/ItzCrazyKns/Perplexica.git || true
           git fetch upstream
 
@@ -35,8 +37,12 @@ jobs:
       - name: Rebase with upstream
         if: env.REPO_SYNCED == 'false'
         run: |
-          git rebase upstream/main || (echo "Conflicts detected during rebase. Manual intervention required." && exit 1)
-          git push --force-with-lease
+          git rebase upstream/main
+          if [ $? -eq 0 ]; then
+            git push --force-with-lease
+          else
+            echo "Conflicts detected during rebase. Manual intervention required."
+            exit 1
 
   build-and-push:
     needs: sync
@@ -57,4 +63,37 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Docker build, DockerSlim, Docker Hub login, and push operations as detailed previously
+      - name: Build Docker Image
+        run: |
+          VERSION=$(jq -r '.version' package.json)
+          IMAGE_NAME=${{ matrix.image_name }}
+          DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
+          echo "VERSION=${VERSION}"
+          echo "IMAGE_NAME=${IMAGE_NAME}"
+          echo "DOCKERHUB_USERNAME=${DOCKERHUB_USERNAME}"
+          docker build -f ${{ matrix.dockerfile }} -t ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:latest -t ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:${VERSION} .
+
+      - name: Install DockerSlim
+        run: |
+          curl -sL https://raw.githubusercontent.com/slimtoolkit/slim/master/scripts/install-slim.sh | sudo -E bash -
+
+      - name: Slim Docker Image
+        run: |
+          IMAGE_NAME=${{ matrix.image_name }}
+          DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
+          slim build --http-probe=true --http-probe-ports=${{ matrix.http_probe_ports }} --expose ${{ matrix.expose_ports }} --include-path "/home/perplexica/node_modules/next/dist" --include-path "/home/perplexica/yarn" --include-path "/home/perplexica/node_modules/encodings" --include-bin /usr/local/bin/node --include-shell --target ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:latest --tag ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:slim
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Docker Operations
+        run: |
+          IMAGE_NAME=${{ matrix.image_name }}
+          DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
+          VERSION=$(jq -r '.version' package.json)
+          docker push ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:latest
+          docker push ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:${VERSION}
+          docker push ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:slim
