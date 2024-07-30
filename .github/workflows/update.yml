@@ -39,7 +39,7 @@ jobs:
       id: check_updates
       continue-on-error: true
       run: |
-        CURRENT_BRANCH=$(git rev-parse origin/master)
+        CURRENT_BRANCH=$(git rev-parse HEAD)
         UPSTREAM_LATEST_COMMIT=$(git rev-parse upstream/master)
         echo "CURRENT_BRANCH=${CURRENT_BRANCH}" >> $GITHUB_ENV
         echo "UPSTREAM_LATEST_COMMIT=${UPSTREAM_LATEST_COMMIT}" >> $GITHUB_ENV
