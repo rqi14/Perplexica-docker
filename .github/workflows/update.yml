@@ -1,52 +1,10 @@
 name: Sync and Build Docker Image
 
 on:
-  schedule:
-    # Runs at 00:00 UTC every day
-    - cron: '0 0 * * *'
+  workflow_dispatch:
 
 jobs:
-  sync:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0  # Ensures all branches and tags are fetched
-
-      - name: Set up Git
-        run: |
-          git config --global user.name 'Your Name'
-          git config --global user.email 'your-email@example.com'
-          git remote add upstream https://github.com/ItzCrazyKns/Perplexica.git || true
-          git fetch upstream
-
-      - name: Check if repository is up-to-date
-        id: check-up-to-date
-        run: |
-          LOCAL=$(git rev-parse @)
-          REMOTE=$(git rev-parse "upstream/main")
-          BASE=$(git merge-base @ "upstream/main")
-          if [ $LOCAL = $REMOTE ]; then
-            echo "Repository is up-to-date"
-            echo "REPO_SYNCED=true" >> $GITHUB_ENV
-          elif [ $LOCAL = $BASE ]; then
-            echo "Need to sync"
-            echo "REPO_SYNCED=false" >> $GITHUB_ENV
-
-      - name: Rebase with upstream
-        if: env.REPO_SYNCED == 'false'
-        run: |
-          git rebase upstream/main
-          if [ $? -eq 0 ]; then
-            git push --force-with-lease
-          else
-            echo "Conflicts detected during rebase. Manual intervention required."
-            exit 1
-
   build-and-push:
-    needs: sync
-    if: needs.sync.outputs.REPO_SYNCED == 'false'
     runs-on: ubuntu-latest
     strategy:
       matrix:
