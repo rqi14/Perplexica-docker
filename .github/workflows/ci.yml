@@ -26,8 +26,8 @@ jobs:
         id: check-up-to-date
         run: |
           LOCAL=$(git rev-parse @)
-          REMOTE=$(git rev-parse "upstream/main")
-          BASE=$(git merge-base @ "upstream/main")
+          REMOTE=$(git rev-parse "upstream/master")
+          BASE=$(git merge-base @ "upstream/master")
           if [ $LOCAL = $REMOTE ]; then
             echo "Repository is up-to-date"
             echo "REPO_SYNCED=true" >> $GITHUB_ENV
@@ -38,7 +38,7 @@ jobs:
       - name: Rebase with upstream
         if: env.REPO_SYNCED == 'false'
         run: |
-          git rebase upstream/main
+          git rebase upstream/master
           if [ $? -eq 0 ]; then
             git push --force-with-lease
           else
