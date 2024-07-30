@@ -33,12 +33,16 @@ jobs:
     - name: Check if there are differences
       id: check_diff
       run: |
-        git diff --exit-code || echo "has_updates=true" >> $GITHUB_ENV
+        if git diff --exit-code; then
+          echo "::set-output name=has_updates::false"
+        else
+          echo "::set-output name=has_updates::true"
+        fi
 
   build-and-deploy:
     needs: sync-and-check
     runs-on: ubuntu-latest
-    if: env.has_updates == 'true'
+    if: needs.sync-and-check.outputs.has_updates == 'true'
 
     strategy:
       matrix:
