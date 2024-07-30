@@ -49,7 +49,7 @@ jobs:
         echo "LAST_UPSTREAM_COMMIT=${LAST_UPSTREAM_COMMIT}" >> $GITHUB_ENV
         if [ "${UPSTREAM_LATEST_COMMIT}" != "${LAST_UPSTREAM_COMMIT}" ]; then
           echo "New updates detected"
-          git merge upstream/master -X theirs --no-edit || true
+          git merge upstream/master --allow-unrelated-histories -X theirs --no-edit || true
           echo "${UPSTREAM_LATEST_COMMIT}" > .last_upstream_commit
           git add .last_upstream_commit
           git commit -m "Update last upstream commit"
@@ -119,7 +119,7 @@ jobs:
           echo "${UPSTREAM_LATEST_COMMIT}" > .last_upstream_commit
   
           # Merge with upstream master and prefer upstream changes in case of conflicts
-          git merge upstream/master -X theirs --no-edit || true
+          git merge upstream/master --allow-unrelated-histories -X theirs --no-edit || true
   
           git add .last_upstream_commit
           git commit -m "Update last upstream commit"
