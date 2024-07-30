@@ -28,13 +28,13 @@ jobs:
           LOCAL=$(git rev-parse @)
           REMOTE=$(git rev-parse "upstream/master")
           BASE=$(git merge-base @ "upstream/master")
-          if [ $LOCAL = $REMOTE ]; then
+          if [ "$LOCAL" = "$REMOTE" ]; then
             echo "Repository is up-to-date"
             echo "REPO_SYNCED=true" >> $GITHUB_ENV
-          elif [ $LOCAL = $BASE ]; then
+          elif [ "$LOCAL" = "$BASE" ]; then
             echo "Need to sync"
             echo "REPO_SYNCED=false" >> $GITHUB_ENV
-
+          fi
       - name: Rebase with upstream
         if: env.REPO_SYNCED == 'false'
         run: |
