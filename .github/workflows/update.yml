@@ -32,22 +32,18 @@ jobs:
         git config --global user.name 'github-actions[bot]'
         git config --global user.email 'github-actions[bot]@users.noreply.github.com'
         git remote add upstream https://github.com/ItzCrazyKns/Perplexica.git
-        git fetch upstream master
+        git fetch origin
+        git fetch upstream
     
     - name: Check for Updates
       id: check_updates
       continue-on-error: true
       run: |
-        git fetch upstream master
+        CURRENT_BRANCH=$(git rev-parse origin/master)
         UPSTREAM_LATEST_COMMIT=$(git rev-parse upstream/master)
+        echo "CURRENT_BRANCH=${CURRENT_BRANCH}" >> $GITHUB_ENV
         echo "UPSTREAM_LATEST_COMMIT=${UPSTREAM_LATEST_COMMIT}" >> $GITHUB_ENV
-        if [ -f .last_upstream_commit ]; then
-          LAST_UPSTREAM_COMMIT=$(cat .last_upstream_commit)
-        else
-          LAST_UPSTREAM_COMMIT=""
-        fi
-        echo "LAST_UPSTREAM_COMMIT=${LAST_UPSTREAM_COMMIT}" >> $GITHUB_ENV
-        if [ "${UPSTREAM_LATEST_COMMIT}" != "${LAST_UPSTREAM_COMMIT}" ]; then
+        if [ "${CURRENT_BRANCH}" != "${UPSTREAM_LATEST_COMMIT}" ]; then
           echo "New updates detected"
           git merge upstream/master --allow-unrelated-histories -X theirs --no-edit || true
           echo "${UPSTREAM_LATEST_COMMIT}" > .last_upstream_commit
@@ -58,7 +54,7 @@ jobs:
         else
           echo "No updates"
           echo "::set-output name=update_available::false"
-        fi  # <--- Missing 'fi' statement here
+        fi
 
     - name: Build Docker Image
       if: steps.check_updates.outputs.update_available == 'true'
