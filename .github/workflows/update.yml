@@ -58,7 +58,8 @@ jobs:
         else
           echo "No updates"
           echo "::set-output name=update_available::false"
-    
+        fi  # <--- Missing 'fi' statement here
+
     - name: Build Docker Image
       if: steps.check_updates.outputs.update_available == 'true'
       run: |
