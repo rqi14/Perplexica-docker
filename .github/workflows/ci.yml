@@ -33,7 +33,7 @@ jobs:
           else
             echo "Repository needs syncing"
             echo "REPO_SYNCED=false" >> $GITHUB_ENV
-          fi  # Add the missing fi to close the if statement
+          fi
 
       - name: Rebase with upstream
         if: env.REPO_SYNCED == 'false'
@@ -47,6 +47,7 @@ jobs:
             echo "Conflicts detected during rebase. Manual intervention required."
             echo "REPO_SYNCED=false" >> $GITHUB_ENV
             exit 1
+          fi
 
   build-and-push:
     needs: sync
