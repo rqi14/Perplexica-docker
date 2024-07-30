@@ -9,6 +9,8 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    outputs:
+      repo_synced: ${{ steps.check-sync.outputs.REPO_SYNCED }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -30,9 +32,11 @@ jobs:
           if [ "$LOCAL" = "$REMOTE" ]; then
             echo "Repository is up-to-date"
             echo "REPO_SYNCED=true" >> $GITHUB_ENV
+            echo "::set-output name=REPO_SYNCED::true"
           else
             echo "Repository needs syncing"
             echo "REPO_SYNCED=false" >> $GITHUB_ENV
+            echo "::set-output name=REPO_SYNCED::false"
           fi
 
       - name: Rebase with upstream
@@ -43,15 +47,17 @@ jobs:
             echo "Rebase successful, pushing changes"
             git push --force-with-lease
             echo "REPO_SYNCED=true" >> $GITHUB_ENV
+            echo "::set-output name=REPO_SYNCED::true"
           else
             echo "Conflicts detected during rebase. Manual intervention required."
             echo "REPO_SYNCED=false" >> $GITHUB_ENV
+            echo "::set-output name=REPO_SYNCED::false"
             exit 1
           fi
 
   build-and-push:
     needs: sync
-    if: needs.sync.outputs.REPO_SYNCED == 'true'
+    if: needs.sync.outputs.repo_synced == 'true'
     runs-on: ubuntu-latest
     strategy:
       matrix:
