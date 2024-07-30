@@ -47,7 +47,7 @@ jobs:
           LAST_UPSTREAM_COMMIT=""
         fi
         echo "LAST_UPSTREAM_COMMIT=${LAST_UPSTREAM_COMMIT}" >> $GITHUB_ENV
-        if [ "${UPSTREAM_LATEST_COMMIT}" != "${LAST_UPstream_COMMIT}" ]; then
+        if [ "${UPSTREAM_LATEST_COMMIT}" != "${LAST_UPSTREAM_COMMIT}" ]; then
           echo "New updates detected"
           git merge upstream/master --allow-unrelated-histories -X theirs --no-edit || true
           echo "${UPSTREAM_LATEST_COMMIT}" > .last_upstream_commit
@@ -99,7 +99,7 @@ jobs:
   commit-last-upstream:
     needs: update-and-build
     runs-on: ubuntu-latest
-    if: ${{ needs.update-and-build.outputs.check_updates.outputs.update_available == 'true' }}
+    if: needs.update-and-build.outputs.check_updates.outputs.update_available == 'true'
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v2
