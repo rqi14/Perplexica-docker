@@ -1,4 +1,4 @@
-name: Update and Build Docker Images
+name: Sync Fork and Build Docker Images
 
 on:
   schedule:
@@ -6,8 +6,39 @@ on:
   workflow_dispatch:
 
 jobs:
-  update-and-build:
+  sync-and-check:
     runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+      with:
+        ref: master
+
+    - name: Set up Git
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+    - name: Add upstream repository
+      run: |
+        git remote add upstream https://github.com/ItzCrazyKns/Perplexica.git
+        git fetch upstream
+
+    - name: Fetch and rebase from upstream
+      run: |
+        git fetch upstream
+        git rebase upstream/master || git rebase --abort
+
+    - name: Check if there are differences
+      id: check_diff
+      run: |
+        git diff --exit-code || echo "has_updates=true" >> $GITHUB_ENV
+
+  build-and-deploy:
+    needs: sync-and-check
+    runs-on: ubuntu-latest
+    if: env.has_updates == 'true'
 
     strategy:
       matrix:
@@ -22,42 +53,12 @@ jobs:
             expose_ports: '3001'
 
     steps:
-    - name: Checkout Repository
+    - name: Checkout repository
       uses: actions/checkout@v2
       with:
         ref: master
 
-    - name: Set up Git
-      run: |
-        git config --global user.name 'github-actions[bot]'
-        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-        git remote add upstream https://github.com/ItzCrazyKns/Perplexica.git
-        git fetch origin
-        git fetch upstream
-    
-    - name: Check for Updates
-      id: check_updates
-      continue-on-error: true
-      run: |
-        CURRENT_BRANCH=$(git rev-parse HEAD)
-        UPSTREAM_LATEST_COMMIT=$(git rev-parse upstream/master)
-        echo "CURRENT_BRANCH=${CURRENT_BRANCH}" >> $GITHUB_ENV
-        echo "UPSTREAM_LATEST_COMMIT=${UPSTREAM_LATEST_COMMIT}" >> $GITHUB_ENV
-        if [ "${CURRENT_BRANCH}" != "${UPSTREAM_LATEST_COMMIT}" ]; then
-          echo "New updates detected"
-          git merge upstream/master --allow-unrelated-histories -X theirs --no-edit || true
-          echo "${UPSTREAM_LATEST_COMMIT}" > .last_upstream_commit
-          git add .last_upstream_commit
-          git commit -m "Update last upstream commit"
-          git push origin HEAD:master --force
-          echo "::set-output name=update_available::true"
-        else
-          echo "No updates"
-          echo "::set-output name=update_available::false"
-        fi
-
     - name: Build Docker Image
-      if: steps.check_updates.outputs.update_available == 'true'
       run: |
         VERSION=$(jq -r '.version' package.json)
         IMAGE_NAME=${{ matrix.image_name }}
@@ -65,26 +66,22 @@ jobs:
         docker build -f ${{ matrix.dockerfile }} -t ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:latest -t ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:$VERSION .
 
     - name: Install DockerSlim
-      if: steps.check_updates.outputs.update_available == 'true'
       run: |
         curl -sL https://raw.githubusercontent.com/slimtoolkit/slim/master/scripts/install-slim.sh | sudo -E bash -
     
     - name: Slim Docker Image
-      if: steps.check_updates.outputs.update_available == 'true'
       run: |
         IMAGE_NAME=${{ matrix.image_name }}
         DOCKERHUB_USERNAME=${{ vars.DOCKERHUB_USERNAME }}
         slim build --http-probe=true --http-probe-ports=${{ matrix.http_probe_ports }} --expose ${{ matrix.expose_ports }} --include-path "/home/perplexica/node_modules/next/dist" --include-path "/home/perplexica/yarn" --include-path "/home/perplexica/node_modules/encodings" --include-bin /usr/local/bin/node  --include-shell --target ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:latest --tag ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:slim
     
     - name: Log in to Docker Hub
-      if: steps.check_updates.outputs.update_available == 'true'
       uses: docker/login-action@v2
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
     - name: Docker Operations
-      if: steps.check_updates.outputs.update_available == 'true'
       run: |
         IMAGE_NAME=${{ matrix.image_name }}
         DOCKERHUB_USERNAME=${{ vars.DOCKERHUB_USERNAME }}
@@ -92,32 +89,3 @@ jobs:
         docker push ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:latest
         docker push ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:$VERSION
         docker push ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:slim
-
-  commit-last-upstream:
-    needs: update-and-build
-    runs-on: ubuntu-latest
-    if: needs.update-and-build.outputs.check_updates.outputs.update_available == 'true'
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v2
-        with:
-          ref: master
-  
-      - name: Set up Git
-        run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git remote add upstream https://github.com/ItzCrazyKns/Perplexica.git
-          git fetch upstream master
-  
-      - name: Commit Changes
-        run: |
-          UPSTREAM_LATEST_COMMIT=$(git rev-parse upstream/master)
-          echo "${UPSTREAM_LATEST_COMMIT}" > .last_upstream_commit
-  
-          # Merge with upstream master and prefer upstream changes in case of conflicts
-          git merge upstream/master --allow-unrelated-histories -X theirs --no-edit || true
-  
-          git add .last_upstream_commit
-          git commit -m "Update last upstream commit"
-          git push origin master --force
