@@ -39,6 +39,11 @@ jobs:
           echo "::set-output name=has_updates::true"
         fi
 
+    - name: Push changes if updates are available
+      if: steps.check_diff.outputs.has_updates == 'true'
+      run: |
+        git push origin master --force
+
   build-and-deploy:
     needs: sync-and-check
     runs-on: ubuntu-latest
