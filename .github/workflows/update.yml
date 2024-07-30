@@ -47,7 +47,7 @@ jobs:
           LAST_UPSTREAM_COMMIT=""
         fi
         echo "LAST_UPSTREAM_COMMIT=${LAST_UPSTREAM_COMMIT}" >> $GITHUB_ENV
-        if [ "${UPSTREAM_LATEST_COMMIT}" != "${LAST_UPSTREAM_COMMIT}" ]; then
+        if [ "${UPSTREAM_LATEST_COMMIT}" != "${LAST_UPstream_COMMIT}" ]; then
           echo "New updates detected"
           git merge upstream/master --allow-unrelated-histories -X theirs --no-edit || true
           echo "${UPSTREAM_LATEST_COMMIT}" > .last_upstream_commit
