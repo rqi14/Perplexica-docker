@@ -1,5 +1,9 @@
 This repo periodically pulls from the upstream Perplexica repo and pushes docker images to docker hub. If using reverse proxy, please refer to https://github.com/ItzCrazyKns/Perplexica/issues/241
 
+The images are hosted on dockerhub
+`https://hub.docker.com/r/rqi14/perplexica-backend`  
+`https://hub.docker.com/r/rqi14/perplexica-app`
+
 Docker images with three tags are pushed to dockerhub.
 1. latest: the latest build of perplexica
 2. x.x.x: the build of a specific version x.x.x
