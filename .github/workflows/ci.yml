@@ -42,34 +42,32 @@ jobs:
           fi
 
       - name: Rebase with upstream
+        id: rebase
         if: env.REPO_SYNCED == 'false'
         env:
           PAT: ${{ secrets.FG_PAT }}
           GITHUB_USERNAME: 'rqi14'
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
-          git rebase upstream/master
           git remote set-url origin https://${GITHUB_USERNAME}:${PAT}@github.com/${GITHUB_REPOSITORY}.git
+          git rebase upstream/master
+          
           if [ $? -eq 0 ]; then
             echo "Rebase successful, removing workflow changes"
             git reset HEAD .github/workflows/
             git checkout -- .github/workflows/
-            if [ $? -eq 0 ]; then
-              echo "Rebase successful, removing workflow changes"
-              git reset HEAD .github/workflows/
-              git checkout -- .github/workflows/
-              git remote set-url origin https://${GITHUB_USERNAME}:${PAT}@github.com/${GITHUB_REPOSITORY}.git
-              if [ -n "$(git status --porcelain)" ]; then
-                git commit -m "Remove workflow file changes"
-              fi
-              echo "Pushing changes without workflow updates"
-              git push --force-with-lease
-            echo "REPO_SYNCED=true" >> $GITHUB_ENV
-            echo "::set-output name=REPO_SYNCED::true"
+      
+            if [ -n "$(git status --porcelain)" ]; then
+              git commit -m "Remove workflow file changes"
+            fi
+      
+            echo "Pushing changes without workflow updates"
+            git push --force-with-lease
+      
+            echo "REPO_SYNCED=true" >> $GITHUB_OUTPUT
           else
             echo "Conflicts detected during rebase. Manual intervention required."
-            echo "REPO_SYNCED=false" >> $GITHUB_ENV
-            echo "::set-output name=REPO_SYNCED::false"
+            echo "REPO_SYNCED=false" >> $GITHUB_OUTPUT
             exit 1
           fi
 
