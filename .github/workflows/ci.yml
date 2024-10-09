@@ -1,7 +1,4 @@
 name: Sync and Build Docker Image
-permissions:
-  contents: write
-  
 on:
   schedule:
     # Runs at 00:00 UTC every day
