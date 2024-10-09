@@ -20,11 +20,17 @@ jobs:
           fetch-depth: 0  # Ensures all branches and tags are fetched
 
       - name: Set up Git
+        env:
+          PAT: ${{ secrets.FG_PAT }}
+          GITHUB_USERNAME: 'rqi14'  # Replace with your GitHub username
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
-          git config --global user.name 'Your Name'
-          git config --global user.email 'your-email@example.com'
+          git config --global user.name 'rqi14'
+          git config --global user.email 'rqi14@example.com'
           git remote add upstream https://github.com/ItzCrazyKns/Perplexica.git || true
           git fetch upstream
+          # Use PAT for authentication when pushing
+          git remote set-url origin https://${GITHUB_USERNAME}:${PAT}@github.com/${GITHUB_REPOSITORY}.git
 
       - name: Check if repository needs syncing
         id: check-sync
@@ -42,7 +48,6 @@ jobs:
           fi
 
       - name: Rebase with upstream
-        id: rebase
         if: env.REPO_SYNCED == 'false'
         env:
           PAT: ${{ secrets.FG_PAT }}
@@ -51,23 +56,15 @@ jobs:
         run: |
           git remote set-url origin https://${GITHUB_USERNAME}:${PAT}@github.com/${GITHUB_REPOSITORY}.git
           git rebase upstream/master
-          
           if [ $? -eq 0 ]; then
-            echo "Rebase successful, removing workflow changes"
-            git reset HEAD .github/workflows/
-            git checkout -- .github/workflows/
-      
-            if [ -n "$(git status --porcelain)" ]; then
-              git commit -m "Remove workflow file changes"
-            fi
-      
-            echo "Pushing changes without workflow updates"
+            echo "Rebase successful, pushing changes"
             git push --force-with-lease
-      
-            echo "REPO_SYNCED=true" >> $GITHUB_OUTPUT
+            echo "REPO_SYNCED=true" >> $GITHUB_ENV
+            echo "::set-output name=REPO_SYNCED::true"
           else
             echo "Conflicts detected during rebase. Manual intervention required."
-            echo "REPO_SYNCED=false" >> $GITHUB_OUTPUT
+            echo "REPO_SYNCED=false" >> $GITHUB_ENV
+            echo "::set-output name=REPO_SYNCED::false"
             exit 1
           fi
 
