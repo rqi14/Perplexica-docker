@@ -15,6 +15,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0  # Ensures all branches and tags are fetched
+          token: ${{ secrets.FG_PAT }}
 
       - name: Set up Git
         env:
