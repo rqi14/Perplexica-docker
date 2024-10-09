@@ -1,7 +1,6 @@
 name: Sync and Build Docker Image
 permissions:
   contents: write
-  workflows: write
 
 on:
   schedule:
