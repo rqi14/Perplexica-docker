@@ -103,7 +103,7 @@ jobs:
         run: |
           IMAGE_NAME=${{ matrix.image_name }}
           DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
-          slim build --http-probe=true --http-probe-ports=${{ matrix.http_probe_ports }} --expose ${{ matrix.expose_ports }} --include-path "/home/perplexica/node_modules/next/dist" --include-path "/home/perplexica/yarn" --include-path "/home/perplexica/node_modules/encodings" --include-bin /usr/local/bin/node --include-shell --target ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:latest --tag ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:slim
+          slim build --http-probe=true --http-probe-ports=${{ matrix.http_probe_ports }} --expose ${{ matrix.expose_ports }} --include-path "/home/perplexica/node_modules/next/dist" --include-path "/home/perplexica/yarn" --include-path "/home/perplexica/node_modules/encodings" --include-path "/home/perplexica/node_modules/iconv-lite" --include-bin /usr/local/bin/node --include-shell --target ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:latest --tag ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:slim
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v2
